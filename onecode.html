@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Feedback Sentiment Analysis</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Sentiment.js for lightweight in-browser sentiment analysis -->
+    <script src="https://unpkg.com/sentiment/min/sentiment.min.js"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Custom styles to enhance the UI */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* Tailwind's gray-50 */
+        }
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9; /* gray-100 */
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; /* gray-300 */
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; /* gray-400 */
+        }
+        /* Animation for dashboard cards on load */
+        .fade-in-up {
+            animation: fadeInUp 0.5s ease-out forwards;
+            opacity: 0;
+        }
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        /* Add different delays for a staggered animation effect */
+        .animation-delay-100 { animation-delay: 0.1s; }
+        .animation-delay-200 { animation-delay: 0.2s; }
+        .animation-delay-300 { animation-delay: 0.3s; }
+        .animation-delay-400 { animation-delay: 0.4s; }
+        .animation-delay-500 { animation-delay: 0.5s; }
+    </style>
+</head>
+<body class="antialiased text-slate-700">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <!-- Header Section -->
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-slate-800">Student Feedback Dashboard</h1>
+            <p class="text-slate-500 mt-1">Real-time sentiment analysis and insights.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left Column: Feedback Submission and Recent Feedback -->
+            <div class="lg:col-span-1 space-y-8">
+                <!-- Feedback Submission Card -->
+                <div class="bg-white p-6 rounded-2xl shadow-lg fade-in-up">
+                    <h2 class="text-xl font-semibold mb-4 text-slate-800">Submit New Feedback</h2>
+                    <form id="feedbackForm" class="space-y-4">
+                        <div>
+                            <label for="feedbackText" class="block text-sm font-medium text-slate-600 mb-1">Feedback</label>
+                            <textarea id="feedbackText" rows="5" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" placeholder="Share your experience..."></textarea>
+                        </div>
+                        <div>
+                            <label for="departmentSelect" class="block text-sm font-medium text-slate-600 mb-1">Department</label>
+                            <select id="departmentSelect" class="w-full p-3 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                                <!-- Options will be populated by JS -->
+                            </select>
+                        </div>
+                         <div>
+                            <label for="courseSelect" class="block text-sm font-medium text-slate-600 mb-1">Course</label>
+                            <select id="courseSelect" class="w-full p-3 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                                <!-- Options will be populated by JS -->
+                            </select>
+                        </div>
+                        <div>
+                            <label for="facultySelect" class="block text-sm font-medium text-slate-600 mb-1">Faculty</label>
+                            <select id="facultySelect" class="w-full p-3 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                                <!-- Options will be populated by JS -->
+                            </select>
+                        </div>
+                        <button type="submit" class="w-full bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700 transition-colors shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Analyze & Submit</button>
+                    </form>
+                    <div id="alertBox" class="mt-4"></div>
+                </div>
+
+                <!-- Recent Feedback List -->
+                <div class="bg-white p-6 rounded-2xl shadow-lg fade-in-up animation-delay-200">
+                    <h2 class="text-xl font-semibold mb-4 text-slate-800">Recent Feedback</h2>
+                    <div id="recentFeedbackList" class="space-y-4 max-h-96 overflow-y-auto pr-2">
+                        <!-- Feedback items will be populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Dashboard Analytics -->
+            <div class="lg:col-span-2 space-y-8">
+                 <!-- Key Metrics -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-lg flex items-center space-x-4 fade-in-up animation-delay-200">
+                        <div class="bg-blue-100 text-blue-600 p-3 rounded-full">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm text-slate-500">Total Feedback</p>
+                            <p id="totalFeedback" class="text-2xl font-bold text-slate-800">0</p>
+                        </div>
+                    </div>
+                     <div class="bg-white p-6 rounded-2xl shadow-lg flex items-center space-x-4 fade-in-up animation-delay-300">
+                        <div class="bg-green-100 text-green-600 p-3 rounded-full">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm text-slate-500">Positive</p>
+                            <p id="positivePercentage" class="text-2xl font-bold text-slate-800">0%</p>
+                        </div>
+                    </div>
+                     <div class="bg-white p-6 rounded-2xl shadow-lg flex items-center space-x-4 fade-in-up animation-delay-400">
+                        <div class="bg-red-100 text-red-600 p-3 rounded-full">
+                           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm text-slate-500">Negative</p>
+                            <p id="negativePercentage" class="text-2xl font-bold text-slate-800">0%</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Charts Section -->
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-8">
+                    <div class="bg-white p-6 rounded-2xl shadow-lg md:col-span-2 fade-in-up animation-delay-300">
+                        <h2 class="text-xl font-semibold mb-4 text-slate-800">Sentiment Distribution</h2>
+                        <div class="h-64 flex items-center justify-center">
+                            <canvas id="sentimentPieChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl shadow-lg md:col-span-3 fade-in-up animation-delay-500">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-semibold text-slate-800">Feedback by Department</h2>
+                             <div>
+                                <label for="filterDepartment" class="sr-only">Filter by Department</label>
+                                <select id="filterDepartment" class="bg-white border border-slate-200 rounded-lg text-sm p-1.5 focus:ring-indigo-500 focus:border-indigo-500">
+                                    <option value="all">All Departments</option>
+                                    <!-- Options populated by JS -->
+                                </select>
+                            </div>
+                        </div>
+                        <div class="h-64">
+                             <canvas id="departmentBarChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DATA STORE ---
+            const universityData = {
+                departments: {
+                    "Computer Science": {
+                        courses: ["CS101 - Intro to Programming", "CS205 - Data Structures", "CS330 - AI & Machine Learning"],
+                        faculty: ["Dr. Alan Turing", "Dr. Grace Hopper", "Dr. Tim Berners-Lee"]
+                    },
+                    "Business Administration": {
+                        courses: ["BA101 - Principles of Management", "BA250 - Marketing Fundamentals", "BA400 - Corporate Strategy"],
+                        faculty: ["Dr. Peter Drucker", "Dr. Sheryl Sandberg"]
+                    },
+                    "Campus Services": {
+                        courses: ["Library Services", "Cafeteria Feedback", "Housing & Dorms"],
+                        faculty: ["Admin Staff"]
+                    }
+                }
+            };
+
+            let feedbackData = [
+                // Pre-populated data for demonstration
+                { id: 1, text: "The professor was amazing and very engaging. Made complex topics easy to understand.", department: "Computer Science", course: "CS205 - Data Structures", faculty: "Dr. Grace Hopper", sentiment: { score: 5, comparative: 1.25, category: 'Positive' }, timestamp: new Date() },
+                { id: 2, text: "The cafeteria food has been really bad lately. It's often cold and lacks variety.", department: "Campus Services", course: "Cafeteria Feedback", faculty: "Admin Staff", sentiment: { score: -4, comparative: -1, category: 'Negative' }, timestamp: new Date() },
+                { id: 3, text: "This course was decent, but the textbook felt very outdated.", department: "Computer Science", course: "CS101 - Intro to Programming", faculty: "Dr. Alan Turing", sentiment: { score: -1, comparative: -0.25, category: 'Neutral' }, timestamp: new Date() },
+                { id: 4, text: "Excellent course on marketing. The case studies were very relevant.", department: "Business Administration", course: "BA250 - Marketing Fundamentals", faculty: "Dr. Peter Drucker", sentiment: { score: 4, comparative: 1, category: 'Positive' }, timestamp: new Date() },
+                { id: 5, text: "I wish the library was open 24/7 during exam week. It would be a huge help.", department: "Campus Services", course: "Library Services", faculty: "Admin Staff", sentiment: { score: 0, comparative: 0, category: 'Neutral' }, timestamp: new Date() },
+                { id: 6, text: "The AI course is mind-blowing but incredibly difficult. The professor is a genius but the workload is immense.", department: "Computer Science", course: "CS330 - AI & Machine Learning", faculty: "Dr. Tim Berners-Lee", sentiment: { score: 1, comparative: 0.2, category: 'Neutral' }, timestamp: new Date() }
+            ];
+
+            // --- CHART INSTANCES ---
+            let sentimentPieChartInstance;
+            let departmentBarChartInstance;
+
+            // --- UI ELEMENT REFERENCES ---
+            const feedbackForm = document.getElementById('feedbackForm');
+            const feedbackText = document.getElementById('feedbackText');
+            const departmentSelect = document.getElementById('departmentSelect');
+            const courseSelect = document.getElementById('courseSelect');
+            const facultySelect = document.getElementById('facultySelect');
+            const filterDepartment = document.getElementById('filterDepartment');
+            const alertBox = document.getElementById('alertBox');
+
+
+            // --- CORE FUNCTIONS ---
+
+            // Function to perform sentiment analysis
+            const analyzeSentiment = (text) => {
+                const sentiment = new Sentiment();
+                const result = sentiment.analyze(text);
+                let category = 'Neutral';
+                if (result.comparative > 0.3) {
+                    category = 'Positive';
+                } else if (result.comparative < -0.3) {
+                    category = 'Negative';
+                }
+                return { ...result, category };
+            };
+            
+            // Populate select dropdowns
+            const populateSelectors = () => {
+                const departments = Object.keys(universityData.departments);
+                departmentSelect.innerHTML = departments.map(d => `<option value="${d}">${d}</option>`).join('');
+                filterDepartment.innerHTML = '<option value="all">All Departments</option>' + departments.map(d => `<option value="${d}">${d}</option>`).join('');
+                
+                departmentSelect.addEventListener('change', updateDependentSelectors);
+                updateDependentSelectors();
+            };
+
+            const updateDependentSelectors = () => {
+                const selectedDept = departmentSelect.value;
+                const deptInfo = universityData.departments[selectedDept];
+                courseSelect.innerHTML = deptInfo.courses.map(c => `<option value="${c}">${c}</option>`).join('');
+                facultySelect.innerHTML = deptInfo.faculty.map(f => `<option value="${f}">${f}</option>`).join('');
+            };
+
+            // Display a temporary alert message
+            const showAlert = (message, type = 'success') => {
+                const bgColor = type === 'success' ? 'bg-green-100 border-green-400 text-green-700' : 'bg-red-100 border-red-400 text-red-700';
+                const alertDiv = document.createElement('div');
+                alertDiv.className = `border px-4 py-3 rounded-lg relative ${bgColor}`;
+                alertDiv.setAttribute('role', 'alert');
+                alertDiv.innerHTML = `<span class="block sm:inline">${message}</span>`;
+                
+                alertBox.innerHTML = '';
+                alertBox.appendChild(alertDiv);
+
+                setTimeout(() => {
+                    alertDiv.style.transition = 'opacity 0.5s ease';
+                    alertDiv.style.opacity = '0';
+                    setTimeout(() => alertBox.innerHTML = '', 500);
+                }, 3000);
+            };
+
+            // Handle form submission
+            const handleFormSubmit = (e) => {
+                e.preventDefault();
+                const text = feedbackText.value.trim();
+                if (!text) {
+                    showAlert('Feedback cannot be empty.', 'error');
+                    return;
+                }
+
+                const sentiment = analyzeSentiment(text);
+                const newFeedback = {
+                    id: feedbackData.length + 1,
+                    text: text,
+                    department: departmentSelect.value,
+                    course: courseSelect.value,
+                    faculty: facultySelect.value,
+                    sentiment: sentiment,
+                    timestamp: new Date()
+                };
+
+                feedbackData.unshift(newFeedback); // Add to the beginning of the array
+                feedbackForm.reset();
+                updateDependentSelectors(); // Reset dependent selectors
+                showAlert('Feedback submitted successfully!');
+                
+                // Update the entire dashboard
+                updateDashboard();
+            };
+
+            // --- RENDERING FUNCTIONS ---
+            
+            const renderRecentFeedback = () => {
+                const container = document.getElementById('recentFeedbackList');
+                container.innerHTML = feedbackData.slice(0, 5).map(item => {
+                    let colorClass, icon;
+                    switch(item.sentiment.category) {
+                        case 'Positive':
+                            colorClass = 'bg-green-100 text-green-800';
+                            icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm7-1a1 1 0 11-2 0 1 1 0 012 0zm-.464 5.535a1 1 0 10-1.415-1.414 3 3 0 01-4.242 0 1 1 0 00-1.415 1.414 5 5 0 007.072 0z" clip-rule="evenodd" /></svg>`;
+                            break;
+                        case 'Negative':
+                            colorClass = 'bg-red-100 text-red-800';
+                             icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm7-1a1 1 0 11-2 0 1 1 0 012 0zm-7.536 6.464a1 1 0 001.415 1.414 3 3 0 014.242 0 1 1 0 001.415-1.414 5 5 0 00-7.072 0z" clip-rule="evenodd" /></svg>`;
+                            break;
+                        default:
+                            colorClass = 'bg-slate-100 text-slate-800';
+                            icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm7-1a1 1 0 11-2 0 1 1 0 012 0zm-1.464 5.535a1 1 0 10-1.415-1.414 3 3 0 01-4.242 0 1 1 0 00-1.415 1.414 5 5 0 007.072 0z" clip-rule="evenodd" /></svg>`;
+                            break;
+                    }
+                    return `
+                        <div class="border-l-4 p-3 rounded-r-lg ${item.sentiment.category === 'Positive' ? 'border-green-500' : item.sentiment.category === 'Negative' ? 'border-red-500' : 'border-slate-500'} bg-slate-50">
+                            <p class="text-sm text-slate-600 truncate">${item.text}</p>
+                            <div class="flex justify-between items-center mt-2">
+                                <span class="text-xs font-medium px-2 py-0.5 rounded-full ${colorClass} flex items-center">${icon}${item.sentiment.category}</span>
+                                <span class="text-xs text-slate-400">${item.department}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            };
+
+            const renderKeyMetrics = (data) => {
+                const total = data.length;
+                if (total === 0) {
+                    document.getElementById('totalFeedback').textContent = 0;
+                    document.getElementById('positivePercentage').textContent = '0%';
+                    document.getElementById('negativePercentage').textContent = '0%';
+                    return;
+                }
+                const positiveCount = data.filter(item => item.sentiment.category === 'Positive').length;
+                const negativeCount = data.filter(item => item.sentiment.category === 'Negative').length;
+
+                document.getElementById('totalFeedback').textContent = total;
+                document.getElementById('positivePercentage').textContent = `${((positiveCount / total) * 100).toFixed(0)}%`;
+                document.getElementById('negativePercentage').textContent = `${((negativeCount / total) * 100).toFixed(0)}%`;
+            };
+
+            const renderSentimentPieChart = (data) => {
+                const ctx = document.getElementById('sentimentPieChart').getContext('2d');
+                const counts = data.reduce((acc, item) => {
+                    acc[item.sentiment.category] = (acc[item.sentiment.category] || 0) + 1;
+                    return acc;
+                }, {});
+
+                const chartData = {
+                    labels: ['Positive', 'Negative', 'Neutral'],
+                    datasets: [{
+                        data: [counts['Positive'] || 0, counts['Negative'] || 0, counts['Neutral'] || 0],
+                        backgroundColor: ['#22c55e', '#ef4444', '#64748b'], // green-500, red-500, slate-500
+                        borderColor: '#ffffff',
+                        borderWidth: 2,
+                    }]
+                };
+
+                if (sentimentPieChartInstance) {
+                    sentimentPieChartInstance.data = chartData;
+                    sentimentPieChartInstance.update();
+                } else {
+                    sentimentPieChartInstance = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: chartData,
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                        padding: 20,
+                                        boxWidth: 12,
+                                        font: {
+                                            size: 14
+                                        }
+                                    }
+                                }
+                            },
+                            cutout: '70%',
+                        }
+                    });
+                }
+            };
+            
+            const renderDepartmentBarChart = (data) => {
+                const ctx = document.getElementById('departmentBarChart').getContext('2d');
+                const departments = Object.keys(universityData.departments);
+                const departmentData = departments.map(dept => {
+                    const deptFeedback = data.filter(item => item.department === dept);
+                    return {
+                        positive: deptFeedback.filter(f => f.sentiment.category === 'Positive').length,
+                        negative: deptFeedback.filter(f => f.sentiment.category === 'Negative').length,
+                        neutral: deptFeedback.filter(f => f.sentiment.category === 'Neutral').length,
+                    };
+                });
+                
+                const chartData = {
+                    labels: departments,
+                    datasets: [
+                        { label: 'Positive', data: departmentData.map(d => d.positive), backgroundColor: '#22c55e' },
+                        { label: 'Negative', data: departmentData.map(d => d.negative), backgroundColor: '#ef4444' },
+                        { label: 'Neutral', data: departmentData.map(d => d.neutral), backgroundColor: '#64748b' },
+                    ]
+                };
+
+                if (departmentBarChartInstance) {
+                    departmentBarChartInstance.data = chartData;
+                    departmentBarChartInstance.update();
+                } else {
+                     departmentBarChartInstance = new Chart(ctx, {
+                        type: 'bar',
+                        data: chartData,
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: { stacked: true, grid: { display: false } },
+                                y: { stacked: true, beginAtZero: true }
+                            },
+                            plugins: {
+                                legend: {
+                                    position: 'top',
+                                    align: 'end',
+                                    labels: {
+                                        boxWidth: 12,
+                                        font: { size: 12 }
+                                    }
+                                }
+                            },
+                            indexAxis: 'y',
+                        }
+                    });
+                }
+            };
+
+            const updateDashboard = () => {
+                const selectedDept = filterDepartment.value;
+                const filteredData = selectedDept === 'all' 
+                    ? feedbackData 
+                    : feedbackData.filter(item => item.department === selectedDept);
+
+                renderKeyMetrics(filteredData);
+                renderRecentFeedback(); // Always show latest overall feedback
+                renderSentimentPieChart(filteredData);
+                renderDepartmentBarChart(feedbackData); // Bar chart always shows all departments for comparison
+            };
+
+            // --- INITIALIZATION ---
+            populateSelectors();
+            updateDashboard();
+
+            // --- EVENT LISTENERS ---
+            feedbackForm.addEventListener('submit', handleFormSubmit);
+            filterDepartment.addEventListener('change', updateDashboard);
+        });
+    </script>
+
+</body>
+</html>
